@@ -12,8 +12,8 @@ load_dotenv()
 # Set page configuration
 st.set_page_config(layout="wide", page_title="India Development Goals Dashboard", page_icon="🇮🇳")
 
-# Check for GEMINI_API_KEY
-gemini_api_key_available = os.getenv("GEMINI_API_KEY") is not None
+# Check for API Key
+gemini_api_key_available = (os.getenv("GEMINI_API_KEY") is not None) or (os.getenv("API_KEY") is not None)
 
 # --- Data Loading and Initialization ---
 @st.cache_data

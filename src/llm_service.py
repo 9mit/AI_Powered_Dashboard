@@ -16,7 +16,7 @@ def call_gemini_api(prompt: str) -> str:
     Returns:
         str: The generated text from the LLM, or an error message.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("API_KEY")
     if not api_key:
         return "Error: GEMINI_API_KEY not found in .env file."
 
