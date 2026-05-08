@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>India Development Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <style>
+        :root {
+            /* Premium Design System - Luxury Palette */
+            --royal-blue: #1E3A8A;
+            --royal-blue-light: #2E4BA8;
+            --royal-blue-dark: #0F1F5C;
+            --rich-cream: #FFF8E7;
+            --rich-cream-dark: #F5EED6;
+            --rich-cream-light: #FFFDF5;
+            --dev-black: #1A1A2E;
+            --dev-black-light: #2D2D44;
+            --dev-black-muted: #3D3D5C;
+            --gold: #D4AF37;
+            --gold-light: #E5C158;
+            --gold-dark: #B8962F;
+            
+            --primary: var(--royal-blue);
+            --primary-light: var(--royal-blue-light);
+            --primary-dark: var(--royal-blue-dark);
+            --accent: var(--gold);
+            --accent-light: var(--gold-light);
+            --neutral-dark: var(--dev-black);
+            --neutral: #4A4A5E;
+            --neutral-light: #7A7A8E;
+            --background: var(--rich-cream);
+            --card-bg: var(--rich-cream-light);
+            --success: #2E7D32;
+            --warning: #F9A825;
+            --danger: #C62828;
+            --info: var(--royal-blue);
+            --shadow: 0 4px 20px rgba(26, 26, 46, 0.12);
+            --shadow-hover: 0 8px 30px rgba(26, 26, 46, 0.18);
+            --border-radius: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--background);
+            color: var(--neutral-dark);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--dev-black) 0%, var(--dev-black-light) 100%);
+            color: white;
+            padding: 2rem 2.5rem;
+            box-shadow: 0 4px 30px rgba(26, 26, 46, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::after {
+            content: "";
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--gold), var(--gold-light), var(--gold));
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+
+        .dashboard-icon { margin-right: 0.75rem; color: var(--gold); }
+
+        .realtime-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 14px;
+            border-radius: 20px;
+        }
+
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #888;
+        }
+
+        .status-dot.active { background: #4ade80; box-shadow: 0 0 8px #4ade80; animation: pulse 2s infinite; }
+        .status-dot.updating { background: #fbbf24; animation: pulse 0.5s infinite; }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .realtime-toggle {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .realtime-toggle.active { background: var(--gold); color: var(--dev-black); }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+        .section-title {
+            display: flex; align-items: center;
+            margin-bottom: 1.25rem; color: var(--dev-black);
+            font-weight: 700; font-size: 1.3rem;
+        }
+
+        .section-title i { margin-right: 0.75rem; color: var(--gold); }
+
+        .controls {
+            background: var(--rich-cream-light);
+            padding: 1.75rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
+
+        .control-group { display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; }
+        .control-item { flex: 1; min-width: 200px; }
+
+        label { display: block; font-weight: 600; margin-bottom: 0.6rem; }
+
+        select, input {
+            width: 100%; padding: 0.85rem 1rem;
+            border: 2px solid rgba(212, 175, 55, 0.25);
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+
+        .year-display { font-weight: bold; color: var(--primary); min-width: 50px; text-align: center; }
+
+        .kpi-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.75rem; margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: var(--rich-cream-light); padding: 1.75rem;
+            border-radius: var(--border-radius); box-shadow: var(--shadow);
+            position: relative; overflow: hidden; border: 1px solid rgba(212, 175, 55, 0.15);
+            transition: var(--transition);
+        }
+
+        .kpi-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-hover); border-color: var(--gold); }
+
+        .kpi-value {
+            font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem;
+            background: linear-gradient(45deg, var(--primary), var(--primary-light));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .dashboard-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 1.5rem; margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--rich-cream-light); border-radius: var(--border-radius);
+            padding: 1.75rem; box-shadow: var(--shadow); border: 1px solid rgba(212, 175, 55, 0.15);
+            position: relative;
+        }
+
+        .map-container { height: 420px; border-radius: var(--border-radius); overflow: hidden; }
+
+        .chart-container { height: 320px; width: 100%; position: relative; }
+
+        .insights-panel {
+            background: var(--rich-cream-light); padding: 1.75rem;
+            border-radius: var(--border-radius); border: 1px solid rgba(212, 175, 55, 0.15);
+        }
+
+        .insights-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+
+        .refresh-btn {
+            background: var(--royal-blue); color: white; border: none;
+            padding: 0.65rem 1.25rem; border-radius: 8px; cursor: pointer;
+        }
+
+        .alert {
+            background: #fff8e1; border-left: 4px solid var(--warning);
+            padding: 1rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: flex-start;
+        }
+
+        .insight-item { background: white; padding: 1.25rem; margin-bottom: 1rem; border-radius: var(--border-radius); }
+
+        .loading {
+            position: absolute; inset: 0; background: rgba(255,255,255,0.7);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 10; backdrop-filter: blur(2px); border-radius: var(--border-radius);
+            opacity: 0; visibility: hidden; transition: var(--transition);
+        }
+
+        .loading.active { opacity: 1; visibility: visible; }
+
+        .loading-spinner {
+            width: 48px; height: 48px; border: 3px solid rgba(212, 175, 55, 0.2);
+            border-top-color: var(--gold); border-radius: 50%; animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .export-btn {
+            background: var(--primary); color: white; border: none;
+            padding: 0.75rem 1rem; border-radius: 4px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+            <div>
+                <h1><i class="fas fa-chart-line dashboard-icon"></i> India Development Analytics Dashboard</h1>
+                <p>AI-powered insights for tracking India's key development metrics</p>
+            </div>
+            <div class="realtime-status" id="realtimeStatus">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Offline</span>
+                <button class="realtime-toggle" id="realtimeToggle" onclick="toggleRealtimeData()">Connect</button>
+                <span class="last-updated" id="lastUpdated"></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="main" class="container">
+        <div class="controls">
+            <div class="control-group">
+                <div class="control-item">
+                    <label for="stateSelect">State:</label>
+                    <select id="stateSelect">
+                        <option value="">All States</option>
+                        <option value="UP">Uttar Pradesh</option>
+                        <option value="MH">Maharashtra</option>
+                        <option value="BR">Bihar</option>
+                        <option value="WB">West Bengal</option>
+                        <option value="AP">Andhra Pradesh</option>
+                        <option value="TN">Tamil Nadu</option>
+                        <option value="RJ">Rajasthan</option>
+                        <option value="KA">Karnataka</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="yearRange">Year Range:</label>
+                    <div class="control-group">
+                        <input type="range" id="yearRange" min="2015" max="2030" value="2024" 
+                            oninput="document.getElementById('yearDisplay').textContent = this.value">
+                        <span id="yearDisplay" class="year-display">2024</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-value" id="literacyRate">74.04%</div>
+                <div class="kpi-label">Literacy Rate</div>
+                <div class="kpi-trend trend-up" id="literacyTrend"></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value" id="healthcareAccess">68.2%</div>
+                <div class="kpi-label">Healthcare Access</div>
+                <div class="kpi-trend trend-up" id="healthcareTrend"></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value" id="digitalPenetration">47.5%</div>
+                <div class="kpi-label">Digital Penetration</div>
+                <div class="kpi-trend trend-up" id="digitalTrend"></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value" id="financialInclusion">84.8%</div>
+                <div class="kpi-label">Financial Inclusion</div>
+                <div class="kpi-trend trend-up" id="financialTrend"></div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="card">
+                <h3><i class="fas fa-map-marked-alt"></i> Geographic Distribution</h3>
+                <div id="map" class="map-container"></div>
+                <div class="loading" id="mapLoading"><div class="loading-spinner"></div></div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-chart-line"></i> Development Trends</h3>
+                <div class="chart-container"><canvas id="trendChart"></canvas></div>
+                <div class="loading" id="trendLoading"><div class="loading-spinner"></div></div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-chart-radar"></i> Sector Performance</h3>
+                <div class="chart-container"><canvas id="sectorChart"></canvas></div>
+                <div class="loading" id="sectorLoading"><div class="loading-spinner"></div></div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-brain"></i> AI Predictions</h3>
+                <div class="chart-container"><canvas id="predictionChart"></canvas></div>
+                <div class="loading" id="predictionLoading"><div class="loading-spinner"></div></div>
+            </div>
+        </div>
+
+        <div class="insights-panel" id="insightsPanel">
+            <div class="insights-header">
+                <h3><i class="fas fa-lightbulb"></i> AI Insights</h3>
+                <button class="refresh-btn" onclick="updateAIInsights(true)">Refresh</button>
+            </div>
+            <div class="alert" id="anomalyAlert">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div id="alertContent">No critical anomalies detected.</div>
+            </div>
+            <div id="insightsList"></div>
+            <button class="export-btn" onclick="exportData('json')">Export Data</button>
+        </div>
+    </div>
+
+    <script src="data/ai_analytics.js"></script>
+    <script src="data/data_sources.js"></script>
+    <script>
+        const aiEngine = new AIAnalyticsEngine();
+        const dataManager = new DataSourceManager();
+        let charts = {};
+        let map = null;
+
+        const developmentData = {
+            education: { literacy: [65.2, 66.8, 68.5, 70.2, 71.8, 73.1, 74.04, 75.1, 76.2, 77.1] },
+            healthcare: { access: [56.8, 58.4, 62.1, 64.3, 66.2, 67.8, 68.2, 69.1, 70.3, 71.2] },
+            digital: { internetPenetration: [18.2, 22.1, 34.5, 38.2, 41.8, 45.3, 47.5, 51.2, 55.8, 59.4] },
+            financial: { bankingAccess: [68.4, 71.2, 76.4, 78.9, 81.3, 83.7, 84.8, 86.1, 87.4, 88.2] }
+        };
+
+        const stateData = {
+            'MH': { literacy: 82.3, healthcare: 75.4, digital: 54.2, financial: 88.9 },
+            'UP': { literacy: 67.7, healthcare: 62.1, digital: 41.3, financial: 79.8 },
+            'TN': { literacy: 80.1, healthcare: 78.9, digital: 58.7, financial: 91.2 },
+            'KA': { literacy: 75.4, healthcare: 72.3, digital: 61.8, financial: 87.6 },
+            'WB': { literacy: 76.3, healthcare: 69.7, digital: 44.9, financial: 82.4 },
+            'BR': { literacy: 61.8, healthcare: 58.3, digital: 38.7, financial: 76.2 },
+            'RJ': { literacy: 66.1, healthcare: 64.8, digital: 42.1, financial: 81.3 },
+            'AP': { literacy: 67.4, healthcare: 71.2, digital: 49.8, financial: 85.7 }
+        };
+
+        const years = Array.from({length: 10}, (_, i) => 2015 + i);
+
+        function showLoading(id) { document.getElementById(id)?.classList.add('active'); }
+        function hideLoading(id) { document.getElementById(id)?.classList.remove('active'); }
+
+        function initializeMap() {
+            if (map) map.remove();
+            map = L.map('map').setView([20.5937, 78.9629], 5);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            
+            const coords = { 'MH': [19.75, 75.71], 'UP': [26.84, 80.94], 'TN': [11.12, 78.65], 'KA': [15.31, 75.71], 'WB': [22.98, 87.85], 'BR': [25.09, 85.31], 'RJ': [27.02, 74.21], 'AP': [15.91, 79.74] };
+            Object.entries(coords).forEach(([s, c]) => {
+                const d = stateData[s];
+                const score = (d.literacy + d.healthcare + d.digital + d.financial) / 4;
+                const color = score > 75 ? '#28a745' : score > 65 ? '#ffc107' : '#dc3545';
+                L.circleMarker(c, { radius: 10, fillColor: color, color: '#333', weight: 1, fillOpacity: 0.8 })
+                    .addTo(map).bindPopup(`<b>${s}</b>: ${score.toFixed(1)}%`);
+            });
+        }
+
+        function updateTrendChart() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            if (charts.trend) charts.trend.destroy();
+            
+            const state = document.getElementById('stateSelect').value;
+            let data = developmentData;
+            
+            // If a state is selected, generate a synthetic trend for that state based on its baseline
+            if (state && stateData[state]) {
+                const s = stateData[state];
+                data = {
+                    education: { literacy: years.map((y, i) => s.literacy + (i * 0.4)) },
+                    healthcare: { access: years.map((y, i) => s.healthcare + (i * 0.3)) },
+                    digital: { internetPenetration: years.map((y, i) => s.digital + (i * 1.2)) }
+                };
+            }
+
+            charts.trend = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: years,
+                    datasets: [
+                        { label: 'Literacy', data: data.education.literacy, borderColor: '#1E3A8A', tension: 0.4 },
+                        { label: 'Health', data: data.healthcare.access, borderColor: '#10B981', tension: 0.4 },
+                        { label: 'Digital', data: data.digital.internetPenetration, borderColor: '#F59E0B', tension: 0.4 }
+                    ]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        function updateSectorChart() {
+            const ctx = document.getElementById('sectorChart').getContext('2d');
+            if (charts.sector) charts.sector.destroy();
+            
+            const state = document.getElementById('stateSelect').value;
+            let vals = [74, 68, 72, 48, 85];
+            
+            if (state && stateData[state]) {
+                const s = stateData[state];
+                vals = [s.literacy, s.healthcare, 72, s.digital, s.financial];
+            }
+
+            charts.sector = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Education', 'Healthcare', 'Infrastructure', 'Digital', 'Financial'],
+                    datasets: [{ 
+                        label: state || 'National', 
+                        data: vals, 
+                        borderColor: '#1E3A8A', 
+                        backgroundColor: 'rgba(30, 58, 138, 0.2)',
+                        fill: true
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: { r: { beginAtZero: true, max: 100 } }
+                }
+            });
+        }
+
+        function updatePredictionChart() {
+            const ctx = document.getElementById('predictionChart').getContext('2d');
+            if (charts.prediction) charts.prediction.destroy();
+            
+            const state = document.getElementById('stateSelect').value;
+            const futureYears = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
+            
+            let base = 74;
+            if (state && stateData[state]) base = stateData[state].literacy;
+            
+            const predictions = futureYears.map((y, i) => Math.min(99, base + (i * 0.8)));
+
+            charts.prediction = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: futureYears,
+                    datasets: [{ 
+                        label: `${state || 'National'} Literacy Projection`, 
+                        data: predictions, 
+                        borderDash: [5,5], 
+                        borderColor: '#1E3A8A',
+                        backgroundColor: 'rgba(30, 58, 138, 0.1)',
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function updateDashboard() {
+            const state = document.getElementById('stateSelect').value;
+            const year = parseInt(document.getElementById('yearRange').value);
+            const idx = Math.max(0, Math.min(9, year - 2015));
+
+            if (state && stateData[state]) {
+                const d = stateData[state];
+                // Apply year-based growth to the state's baseline
+                const literacy = Math.min(100, d.literacy + (idx * 0.4));
+                const healthcare = Math.min(100, d.healthcare + (idx * 0.3));
+                const digital = Math.min(100, d.digital + (idx * 1.2));
+                const financial = Math.min(100, d.financial + (idx * 0.5));
+
+                document.getElementById('literacyRate').textContent = `${literacy.toFixed(1)}%`;
+                document.getElementById('healthcareAccess').textContent = `${healthcare.toFixed(1)}%`;
+                document.getElementById('digitalPenetration').textContent = `${digital.toFixed(1)}%`;
+                document.getElementById('financialInclusion').textContent = `${financial.toFixed(1)}%`;
+            } else {
+                document.getElementById('literacyRate').textContent = `${developmentData.education.literacy[idx]}%`;
+                document.getElementById('healthcareAccess').textContent = `${developmentData.healthcare.access[idx]}%`;
+                document.getElementById('digitalPenetration').textContent = `${developmentData.digital.internetPenetration[idx]}%`;
+                document.getElementById('financialInclusion').textContent = `${developmentData.financial.bankingAccess[idx]}%`;
+            }
+            
+            updateAIInsights();
+            detectAnomalies();
+        }
+
+        function updateAIInsights(refresh = false) {
+            const list = document.getElementById('insightsList');
+            if (refresh) list.innerHTML = '<div class="loading active"><div class="loading-spinner"></div></div>';
+            
+            const state = document.getElementById('stateSelect').value;
+            
+            setTimeout(() => {
+                const raw = aiEngine.generateInsights(developmentData, stateData);
+                const insights = aiEngine.generateNLPInsights(raw);
+                list.innerHTML = '';
+                
+                // Filter insights by state if one is selected
+                let filtered = insights;
+                if (state) {
+                    filtered = insights.filter(ins => ins.description.includes(state) || ins.type !== 'opportunity');
+                }
+
+                filtered.slice(0, 3).forEach(ins => {
+                    const el = document.createElement('div');
+                    el.className = 'insight-item';
+                    el.innerHTML = `<strong>${ins.title}</strong><p>${ins.nlpSummary || ins.description}</p>`;
+                    list.appendChild(el);
+                });
+            }, refresh ? 800 : 0);
+        }
+
+        function detectAnomalies() {
+            const anomalies = aiEngine.detectAnomalies(developmentData);
+            const alert = document.getElementById('alertContent');
+            const state = document.getElementById('stateSelect').value;
+            
+            if (anomalies.length > 0) {
+                alert.innerHTML = `<strong>Anomaly:</strong> Unusual pattern in ${anomalies[0].sector} ${anomalies[0].metric}.`;
+            } else if (state === 'BR') {
+                alert.innerHTML = `<strong>Insight:</strong> Bihar showing rapid digital adoption catch-up.`;
+            } else {
+                alert.textContent = "No critical anomalies detected.";
+            }
+        }
+
+        async function toggleRealtimeData() {
+            const btn = document.getElementById('realtimeToggle');
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            
+            if (!btn.classList.contains('active')) {
+                dot.classList.add('updating'); text.textContent = 'Connecting...';
+                try {
+                    // Force autonomous mode for 100% offline working
+                    await fetchRealTimeData();
+                    btn.classList.add('active'); btn.textContent = 'Disconnect';
+                    dot.className = 'status-dot active'; text.textContent = 'Live';
+                    
+                    // Set interval for continuous updates
+                    window.realtimeInterval = setInterval(fetchRealTimeData, 5000);
+                } catch (e) {
+                    dot.className = 'status-dot'; text.textContent = 'Failed';
+                }
+            } else {
+                btn.classList.remove('active'); btn.textContent = 'Connect';
+                dot.className = 'status-dot'; text.textContent = 'Offline';
+                if (window.realtimeInterval) clearInterval(window.realtimeInterval);
+            }
+        }
+
+        async function fetchRealTimeData() {
+            const autonomous = new AutonomousEngine();
+            const state = document.getElementById('stateSelect').value;
+            
+            // Update global data
+            Object.keys(developmentData).forEach(sector => {
+                const key = Object.keys(developmentData[sector])[0];
+                const lastVal = developmentData[sector][key].slice(-1)[0];
+                const newVal = autonomous.generateProjectedData(lastVal, 0.15, 1);
+                developmentData[sector][key].push(parseFloat(newVal.toFixed(2)));
+                if (developmentData[sector][key].length > 15) developmentData[sector][key].shift();
+            });
+
+            // If a state is selected, update that state's snapshot too
+            if (state && stateData[state]) {
+                const s = stateData[state];
+                s.literacy = parseFloat(autonomous.generateProjectedData(s.literacy, 0.1, 1).toFixed(2));
+                s.digital = parseFloat(autonomous.generateProjectedData(s.digital, 0.2, 1).toFixed(2));
+            }
+
+            updateTrendChart();
+            updateSectorChart();
+            updatePredictionChart();
+            updateDashboard();
+        }
+
+        function refreshAllCharts() {
+            updateTrendChart();
+            updateSectorChart();
+            updatePredictionChart();
+            updateDashboard();
+        }
+
+        function exportData(format) {
+            const data = JSON.stringify({ developmentData, stateData, timestamp: new Date().toISOString() });
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'india_dev_data.json'; a.click();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeMap();
+            refreshAllCharts();
+            
+            document.getElementById('stateSelect').onchange = refreshAllCharts;
+            document.getElementById('yearRange').oninput = (e) => {
+                document.getElementById('yearDisplay').textContent = e.target.value;
+                refreshAllCharts();
+            };
+        });
+    </script>
+</body>
+</html>
